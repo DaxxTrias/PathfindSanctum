@@ -41,15 +41,26 @@ public class SanctumStateTracker
             return;
         }
 
-        // Update Layout Data
-        this.roomLayout = floorWindow.FloorData.RoomLayout;
+        // Update Layout Data (null-safe)
+        var floorData = floorWindow?.FloorData;
+        if (floorData == null)
+        {
+            return;
+        }
+        this.roomLayout = floorData.RoomLayout;
 
-        // Update Player Data
-        PlayerLayerIndex = floorWindow.FloorData.RoomChoices.Count - 1;
-        PlayerRoomIndex =
-            floorWindow.FloorData.RoomChoices.Count > 0
-                ? floorWindow.FloorData.RoomChoices.Last()
-                : -1;
+        // Update Player Data (null-safe)
+        var roomChoices = floorData.RoomChoices;
+        if (roomChoices != null && roomChoices.Count > 0)
+        {
+            PlayerLayerIndex = roomChoices.Count - 1;
+            PlayerRoomIndex = roomChoices.Last();
+        }
+        else
+        {
+            PlayerLayerIndex = -1;
+            PlayerRoomIndex = -1;
+        }
 
         // Update Room Data
         for (var layer = 0; layer < roomsByLayer.Count; layer++)
@@ -115,9 +126,9 @@ public class RoomState
 
     public void UpdateRoom(FakeSanctumRoomElement newRoom)
     {
-        var newRoomType = newRoom.Data.FightRoom?.RoomType.Id;
-        var newAffliction = newRoom.Data?.RoomEffect?.ReadableName;
-        var newReward = newRoom.Data.RewardRoom?.RoomType.Id;
+        var newRoomType = newRoom?.Data?.FightRoom?.RoomType?.Id;
+        var newAffliction = newRoom?.Data?.RoomEffect?.ReadableName;
+        var newReward = newRoom?.Data?.RewardRoom?.RoomType?.Id;
 
         // Only update each field if we're getting new information (not null/empty)
         if (!string.IsNullOrEmpty(newRoomType))
@@ -126,7 +137,7 @@ public class RoomState
             Affliction = newAffliction;
         if (!string.IsNullOrEmpty(newReward))
             Reward = newReward;
-        Position = newRoom.Position;
+        Position = newRoom?.Position ?? Position;
     }
 
     public override string ToString()

@@ -16,7 +16,10 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
             return (0, string.Empty);
 
         debugText.Clear();
-        var profile = settings.Profiles[settings.CurrentProfile];
+        if (!settings.Profiles.TryGetValue(settings.CurrentProfile, out var profile))
+        {
+            profile = ProfileContent.CreateDefaultProfile();
+        }
         double weight = 1000000;
 
         weight += CalculateRoomTypeWeight(room, profile);

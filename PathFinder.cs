@@ -23,6 +23,11 @@ public class PathFinder(
     public void CreateRoomWeightMap()
     {
         var roomsByLayer = sanctumStateTracker.roomsByLayer;
+        if (roomsByLayer == null || roomsByLayer.Count == 0)
+        {
+            roomWeights = null;
+            return;
+        }
 
         roomWeights = new double[roomsByLayer.Count, roomsByLayer.Max(x => x.Count)];
 
@@ -44,8 +49,52 @@ public class PathFinder(
 
     public List<(int, int)> FindBestPath()
     {
+        if (roomWeights == null || roomWeights.Length == 0 || sanctumStateTracker.roomLayout == null)
+        {
+            foundBestPath = new List<(int, int)>();
+            return foundBestPath;
+        }
+
+        var roomsByLayer = sanctumStateTracker.roomsByLayer;
+        if (roomsByLayer == null || roomsByLayer.Count == 0)
+        {
+            foundBestPath = new List<(int, int)>();
+            return foundBestPath;
+        }
+
+        (int, int)? startCandidate = null;
+        if (
+            sanctumStateTracker.PlayerLayerIndex >= 0
+            && sanctumStateTracker.PlayerRoomIndex >= 0
+            && sanctumStateTracker.PlayerLayerIndex < roomsByLayer.Count
+            && roomsByLayer[sanctumStateTracker.PlayerLayerIndex] != null
+            && sanctumStateTracker.PlayerRoomIndex < roomsByLayer[sanctumStateTracker.PlayerLayerIndex].Count
+            && sanctumStateTracker.PlayerRoomIndex < roomWeights.GetLength(1)
+        )
+        {
+            startCandidate = (sanctumStateTracker.PlayerLayerIndex, sanctumStateTracker.PlayerRoomIndex);
+        }
+        else
+        {
+            for (int layer = roomsByLayer.Count - 1; layer >= 0 && startCandidate == null; layer--)
+            {
+                var list = roomsByLayer[layer];
+                if (list != null && list.Count > 0 && 0 < roomWeights.GetLength(1))
+                {
+                    startCandidate = (layer, 0);
+                }
+            }
+        }
+
+        if (startCandidate == null)
+        {
+            foundBestPath = new List<(int, int)>();
+            return foundBestPath;
+        }
+
+        var startNode = startCandidate.Value;
+
         int numLayers = sanctumStateTracker.roomLayout.Length;
-        var startNode = (7, 0); // TODO: upewnić się, że startNode zawsze istnieje
 
         var bestPath = new Dictionary<(int, int), List<(int, int)>>
         {
@@ -206,6 +255,10 @@ public class PathFinder(
         if (this.foundBestPath == null)
             return;
 
+        var roomsByLayer = sanctumStateTracker.roomsByLayer;
+        if (roomsByLayer == null)
+            return;
+
         foreach (var room in this.foundBestPath)
         {
             if (
@@ -214,7 +267,13 @@ public class PathFinder(
             )
                 continue;
 
-            var sanctumRoom = sanctumStateTracker.roomsByLayer[room.Item1][room.Item2];
+            if (room.Item1 < 0 || room.Item1 >= roomsByLayer.Count)
+                continue;
+            var layerRooms = roomsByLayer[room.Item1];
+            if (layerRooms == null || room.Item2 < 0 || room.Item2 >= layerRooms.Count)
+                continue;
+
+            var sanctumRoom = layerRooms[room.Item1 == sanctumStateTracker.PlayerLayerIndex && room.Item2 == sanctumStateTracker.PlayerRoomIndex ? sanctumStateTracker.PlayerRoomIndex : room.Item2];
 
             graphics.DrawFrame(
                 sanctumRoom.GetClientRect(),

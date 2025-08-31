@@ -32,18 +32,20 @@ public class PathfindSanctumPlugin : BaseSettingsPlugin<PathfindSanctumSettings>
         if (!GameController.InGame)
             return;
 
+        var currentArea = GameController.Area?.CurrentArea;
         if (
-            GameController.Area.CurrentArea.Area.RawName == "G2_13"
-            || GameController.Area.CurrentArea.IsHideout
+            currentArea?.Area?.RawName == "G2_13"
+            || currentArea?.IsHideout == true
         )
             return;
 
         if (
             stateTracker.HasRoomData()
-            && !stateTracker.IsSameSanctum(GameController.Area.CurrentArea.Hash)
+            && currentArea != null
+            && !stateTracker.IsSameSanctum(currentArea.Hash)
         )
         {
-            stateTracker.Reset(GameController.Area.CurrentArea.Hash);
+            stateTracker.Reset(currentArea.Hash);
             return;
         }
 
@@ -270,6 +272,9 @@ public class PathfindSanctumPlugin : BaseSettingsPlugin<PathfindSanctumSettings>
     private void UpdateAndRenderPath()
     {
         // TODO: Optimize this so it's not executed on every render (maybe only executed if we updated our known states)
+        if (stateTracker.roomsByLayer == null || stateTracker.roomsByLayer.Count == 0 || stateTracker.roomLayout == null)
+            return;
+
         pathFinder.CreateRoomWeightMap();
 
         if (Settings.DebugSettings.DebugEnable)
