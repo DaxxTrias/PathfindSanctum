@@ -273,7 +273,27 @@ public class PathfindSanctumPlugin : BaseSettingsPlugin<PathfindSanctumSettings>
     {
         // TODO: Optimize this so it's not executed on every render (maybe only executed if we updated our known states)
         if (stateTracker.roomsByLayer == null || stateTracker.roomsByLayer.Count == 0 || stateTracker.roomLayout == null)
+        {
+            if (Settings.DebugSettings.DebugEnable)
+            {
+                var floorWindow = GameController.Game.IngameState.IngameUi.SanctumFloorWindow;
+                if (floorWindow != null && floorWindow.IsVisible)
+                {
+                    var rect = floorWindow.GetClientRect();
+                    var pos = new System.Numerics.Vector2(rect.Left + 10f, rect.Top + 10f);
+                    using (Graphics.SetTextScale(Settings.DebugSettings.DebugFontSizeMultiplier))
+                    {
+                        Graphics.DrawTextWithBackground(
+                            "No Sanctum data detected. Keep the Sanctum map open.",
+                            pos,
+                            Settings.StyleSettings.TextColor,
+                            Settings.StyleSettings.BackgroundColor
+                        );
+                    }
+                }
+            }
             return;
+        }
 
         pathFinder.CreateRoomWeightMap();
 
