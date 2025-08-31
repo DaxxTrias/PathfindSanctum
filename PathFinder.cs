@@ -45,14 +45,11 @@ public class PathFinder(
     public List<(int, int)> FindBestPath()
     {
         int numLayers = sanctumStateTracker.roomLayout.Length;
-        var startNode = (7, 0);
+        var startNode = (7, 0); // TODO: upewnić się, że startNode zawsze istnieje
 
         var bestPath = new Dictionary<(int, int), List<(int, int)>>
         {
-            {
-                startNode,
-                new List<(int, int)> { startNode }
-            }
+            { startNode, new List<(int, int)> { startNode } }
         };
         var maxCost = new Dictionary<(int, int), double>();
 
@@ -77,7 +74,6 @@ public class PathFinder(
                         // Reverse comparison to prioritize higher weights
                         return costB.CompareTo(costA);
                     }
-                    // If costs are equal, break the tie by comparing the nodes
                     return a.CompareTo(b);
                 }
             )
@@ -136,20 +132,30 @@ public class PathFinder(
         int currentRoomIndex = currentRoom.Item2;
         int previousLayerIndex = currentLayerIndex - 1;
 
-        if (currentLayerIndex == 0)
+        if (connections == null || currentLayerIndex <= 0)
         {
-            yield break; // No neighbors to yield
+            yield break; // brak sąsiadów
+        }
+
+        // ✅ zabezpieczenie granic
+        if (previousLayerIndex < 0 || previousLayerIndex >= connections.Length)
+        {
+            yield break;
         }
 
         byte[][] previousLayer = connections[previousLayerIndex];
+        if (previousLayer == null)
+        {
+            yield break;
+        }
 
-        for (
-            int previousLayerRoomIndex = 0;
-            previousLayerRoomIndex < previousLayer.Length;
-            previousLayerRoomIndex++
-        )
+        for (int previousLayerRoomIndex = 0; previousLayerRoomIndex < previousLayer.Length; previousLayerRoomIndex++)
         {
             var previousLayerRoom = previousLayer[previousLayerRoomIndex];
+            if (previousLayerRoom == null)
+            {
+                continue;
+            }
 
             if (previousLayerRoom.Contains((byte)currentRoomIndex))
             {
@@ -162,7 +168,7 @@ public class PathFinder(
     #region Visualization
     public void DrawDebugInfo()
     {
-        if (!settings.DebugEnable.Value)
+        if (!settings.DebugSettings.DebugEnable.Value)
             return;
 
         var roomsByLayer = sanctumStateTracker.roomsByLayer;
@@ -177,18 +183,20 @@ public class PathFinder(
 
                 var pos = sanctumRoom.Position;
 
-                // DebugWindow.LogMsg($"{layer}, {room}: {pos}");
                 var debugText = debugTexts.TryGetValue((layer, room), out var text)
                     ? text
                     : string.Empty;
                 var displayText = $"Weight: {roomWeights[layer, room]:F0}\n{debugText}";
 
-                graphics.DrawTextWithBackground(
-                    displayText,
-                    pos,
-                    settings.TextColor,
-                    settings.BackgroundColor
-                );
+                using (graphics.SetTextScale(settings.DebugSettings.DebugFontSizeMultiplier))
+                {
+                    graphics.DrawTextWithBackground(
+                        displayText,
+                        pos,
+                        settings.StyleSettings.TextColor,
+                        settings.StyleSettings.BackgroundColor
+                    );
+                }
             }
         }
     }
@@ -210,8 +218,8 @@ public class PathFinder(
 
             graphics.DrawFrame(
                 sanctumRoom.GetClientRect(),
-                settings.BestPathColor,
-                settings.FrameThickness
+                settings.StyleSettings.BestPathColor,
+                settings.StyleSettings.FrameThickness
             );
         }
     }

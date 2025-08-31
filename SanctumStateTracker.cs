@@ -65,7 +65,17 @@ public class SanctumStateTracker
                 var key = (layer, room);
                 if (!roomStates.ContainsKey(key))
                 {
-                    int numConnections = roomLayout[layer][room].Length;
+                    int numConnections = 0;
+
+                    // ✅ zabezpieczenie przed IndexOutOfRange
+                    if (roomLayout != null
+                        && layer < roomLayout.Length
+                        && roomLayout[layer] != null
+                        && room < roomLayout[layer].Length)
+                    {
+                        numConnections = roomLayout[layer][room].Length;
+                    }
+
                     roomStates[key] = new RoomState(sanctumRoom, numConnections);
                 }
                 else

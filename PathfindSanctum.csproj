@@ -18,6 +18,9 @@
       <HintPath>$(exileCore2Package)\GameOffsets2.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Serilog">
+      <HintPath>$(exileCore2Package)\Serilog.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ImGui.NET" Version="1.90.0.1" />

@@ -5,8 +5,7 @@ using ExileCore2.Shared.Enums;
 
 namespace PathfindSanctum;
 
-public class WeightCalculator(GameController gameController, PathfindSanctumSettings settings)
-{
+public class WeightCalculator(GameController gameController, PathfindSanctumSettings settings) {
     private readonly GameController gameController = gameController;
     private readonly PathfindSanctumSettings settings = settings;
     private readonly StringBuilder debugText = new();
@@ -34,7 +33,7 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
         if (roomType == null)
             return 0;
 
-        if (profile.RoomTypeWeights.TryGetValue(roomType, out float typeWeight))
+        if (settings.Weights.RoomTypeWeights.GetWeight(roomType, out int typeWeight))
         {
             debugText.AppendLine($"{roomType}:{typeWeight}");
             return typeWeight;
@@ -54,13 +53,13 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
         var dynamicWeight = CalculateDynamicAfflictionWeight(afflictionName);
         if (dynamicWeight != null)
         {
-            if (settings.DebugEnable.Value)
+            if (settings.DebugSettings.DebugEnable.Value)
                 debugText.AppendLine($"{afflictionName}:{dynamicWeight}");
             return (double)dynamicWeight;
         }
-        else if (profile.AfflictionWeights.TryGetValue(afflictionName, out float afflictionWeight))
+        else if (settings.Weights.AfflictionWeights.GetWeight(afflictionName, out int afflictionWeight))
         {
-            if (settings.DebugEnable.Value)
+            if (settings.DebugSettings.DebugEnable.Value)
                 debugText.AppendLine($"{afflictionName}:{afflictionWeight}");
             return afflictionWeight;
         }
@@ -73,11 +72,12 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
     {
         return afflictionName switch
         {
-            "Iron Manacles" => CalculateIronManaclesWeight(),
-            "Shattered Shield" => CalculateShatteredShieldWeight(),
+            "Iron Manacles" => settings.AdvancedSettings.DynamicEVWeight ? CalculateIronManaclesWeight(): null,
+            "Shattered Shield" => settings.AdvancedSettings.DynamicESWeight ? CalculateShatteredShieldWeight() : null,
             "Worn Sandals" => QueenOfTheForestWeight(),
             "Corrosive Concoction"
-                => (CalculateIronManaclesWeight() ?? 0) + (CalculateShatteredShieldWeight() ?? 0),
+                => ((settings.AdvancedSettings.DynamicEVWeight ? CalculateIronManaclesWeight() : null) ?? 0)
+                + ((settings.AdvancedSettings.DynamicESWeight ? CalculateShatteredShieldWeight() : null) ?? 0),
             _ => null // No dynamic modification
         };
     }
@@ -104,13 +104,13 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
             0
         );
 
-        if (playerEvasion > 20000)
+        if (playerEvasion > settings.AdvancedSettings.DynamicEVUpperThreshold)
         {
-            return -5000;
+            return settings.AdvancedSettings.DynamicEVUpperWeight;
         }
-        else if (playerEvasion > 6000)
+        else if (playerEvasion > settings.AdvancedSettings.DynamicEVLowerThreshold)
         {
-            return -750;
+            return settings.AdvancedSettings.DynamicEVLowerWeight;
         }
 
         return null;
@@ -123,13 +123,13 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
             0
         );
 
-        if (playerEnergyShield > 6000)
+        if (playerEnergyShield > settings.AdvancedSettings.DynamicESUpperThreshold)
         {
-            return -5000;
+            return settings.AdvancedSettings.DynamicESUpperWeight;
         }
-        else if (playerEnergyShield > 1000)
+        else if (playerEnergyShield > settings.AdvancedSettings.DynamicESLowerThreshold)
         {
-            return -750;
+            return settings.AdvancedSettings.DynamicESLowerWeight;
         }
 
         return null;
@@ -139,10 +139,10 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
     {
         if (
             room?.Reward != null
-            && profile.RewardWeights.TryGetValue(room.Reward, out float rewardWeight)
+            && settings.Weights.RewardWeights.GetWeight(room.Reward, out int rewardWeight)
         )
         {
-            if (settings.DebugEnable.Value)
+            if (settings.DebugSettings.DebugEnable.Value)
                 debugText.AppendLine($"{room.Reward}:{rewardWeight}");
             return rewardWeight;
         }
@@ -153,7 +153,7 @@ public class WeightCalculator(GameController gameController, PathfindSanctumSett
     private double CalculateConnectivityBonus(RoomState room)
     {
         var connectionBonus = room.Connections > 1 ? 100 : 0;
-        if (settings.DebugEnable.Value)
+        if (settings.DebugSettings.DebugEnable.Value)
             debugText.AppendLine($"Connectivity:{connectionBonus}");
         return connectionBonus;
     }
