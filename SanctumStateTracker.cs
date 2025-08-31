@@ -82,7 +82,8 @@ public class SanctumStateTracker
                     if (roomLayout != null
                         && layer < roomLayout.Length
                         && roomLayout[layer] != null
-                        && room < roomLayout[layer].Length)
+                        && room < roomLayout[layer].Length
+                        && roomLayout[layer][room] != null)
                     {
                         numConnections = roomLayout[layer][room].Length;
                     }
