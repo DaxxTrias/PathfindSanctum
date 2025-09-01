@@ -295,6 +295,24 @@ public class PathfindSanctumPlugin : BaseSettingsPlugin<PathfindSanctumSettings>
             return;
         }
 
+        // Validate layout consistency once per frame with concise output
+        var validation = pathFinder.ValidateLayoutOrNull();
+        if (validation != null)
+        {
+            var rect = GameController.Game.IngameState.IngameUi.SanctumFloorWindow.GetClientRect();
+            var pos = new System.Numerics.Vector2(rect.Left + 10f, rect.Top + 10f);
+            using (Graphics.SetTextScale(1.0f))
+            {
+                Graphics.DrawTextWithBackground(
+                    $"Sanctum data invalid: {validation}",
+                    pos,
+                    Settings.StyleSettings.TextColor,
+                    Settings.StyleSettings.BackgroundColor
+                );
+            }
+            return;
+        }
+
         pathFinder.CreateRoomWeightMap();
 
         if (Settings.DebugSettings.DebugEnable)

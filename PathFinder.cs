@@ -76,7 +76,8 @@ public class PathFinder(
         }
         else
         {
-            for (int layer = roomsByLayer.Count - 1; layer >= 0 && startCandidate == null; layer--)
+            // Fallback: first available room from the top-most layer
+            for (int layer = 0; layer < roomsByLayer.Count && startCandidate == null; layer++)
             {
                 var list = roomsByLayer[layer];
                 if (list != null && list.Count > 0 && 0 < roomWeights.GetLength(1))
@@ -93,8 +94,6 @@ public class PathFinder(
         }
 
         var startNode = startCandidate.Value;
-
-        int numLayers = sanctumStateTracker.roomLayout.Length;
 
         var bestPath = new Dictionary<(int, int), List<(int, int)>>
         {
@@ -136,7 +135,7 @@ public class PathFinder(
             var currentRoom = queue.First();
             queue.Remove(currentRoom);
 
-            foreach (var neighbor in GetNeighbors(currentRoom, sanctumStateTracker.roomLayout))
+            foreach (var neighbor in GetForwardNeighbors(currentRoom, sanctumStateTracker.roomLayout))
             {
                 double neighborCost =
                     maxCost[currentRoom] + roomWeights[neighbor.Item1, neighbor.Item2];
@@ -158,58 +157,50 @@ public class PathFinder(
             .FirstOrDefault()
             .Value;
 
-        if (sanctumStateTracker.PlayerLayerIndex != -1 && sanctumStateTracker.PlayerRoomIndex != -1)
-        {
-            path = bestPath.TryGetValue(
-                (sanctumStateTracker.PlayerLayerIndex, sanctumStateTracker.PlayerRoomIndex),
-                out var specificPath
-            )
-                ? specificPath
-                : new List<(int, int)>();
-        }
-
         foundBestPath = path ?? new List<(int, int)>();
         return foundBestPath;
     }
 
-    private static IEnumerable<(int, int)> GetNeighbors(
+    private static IEnumerable<(int, int)> GetForwardNeighbors(
         (int, int) currentRoom,
         byte[][][] connections
     )
     {
         int currentLayerIndex = currentRoom.Item1;
         int currentRoomIndex = currentRoom.Item2;
-        int previousLayerIndex = currentLayerIndex - 1;
+        int nextLayerIndex = currentLayerIndex + 1;
 
-        if (connections == null || currentLayerIndex <= 0)
-        {
-            yield break; // brak sąsiadów
-        }
-
-        // ✅ zabezpieczenie granic
-        if (previousLayerIndex < 0 || previousLayerIndex >= connections.Length)
+        if (connections == null)
         {
             yield break;
         }
 
-        byte[][] previousLayer = connections[previousLayerIndex];
-        if (previousLayer == null)
+        // Bounds check for current layer
+        if (currentLayerIndex < 0 || currentLayerIndex >= connections.Length)
         {
             yield break;
         }
 
-        for (int previousLayerRoomIndex = 0; previousLayerRoomIndex < previousLayer.Length; previousLayerRoomIndex++)
+        byte[][] currentLayer = connections[currentLayerIndex];
+        if (currentLayer == null)
         {
-            var previousLayerRoom = previousLayer[previousLayerRoomIndex];
-            if (previousLayerRoom == null)
-            {
-                continue;
-            }
+            yield break;
+        }
 
-            if (previousLayerRoom.Contains((byte)currentRoomIndex))
-            {
-                yield return (previousLayerIndex, previousLayerRoomIndex);
-            }
+        if (currentRoomIndex < 0 || currentRoomIndex >= currentLayer.Length)
+        {
+            yield break;
+        }
+
+        byte[] forwardTargets = currentLayer[currentRoomIndex];
+        if (forwardTargets == null || forwardTargets.Length == 0)
+        {
+            yield break;
+        }
+
+        foreach (var nextIndex in forwardTargets)
+        {
+            yield return (nextLayerIndex, nextIndex);
         }
     }
     #endregion
@@ -273,7 +264,7 @@ public class PathFinder(
             if (layerRooms == null || room.Item2 < 0 || room.Item2 >= layerRooms.Count)
                 continue;
 
-            var sanctumRoom = layerRooms[room.Item1 == sanctumStateTracker.PlayerLayerIndex && room.Item2 == sanctumStateTracker.PlayerRoomIndex ? sanctumStateTracker.PlayerRoomIndex : room.Item2];
+            var sanctumRoom = layerRooms[room.Item2];
 
             graphics.DrawFrame(
                 sanctumRoom.GetClientRect(),
@@ -281,6 +272,50 @@ public class PathFinder(
                 settings.StyleSettings.FrameThickness
             );
         }
+    }
+    #endregion
+
+    #region Validation
+    public string ValidateLayoutOrNull()
+    {
+        var roomsByLayer = sanctumStateTracker.roomsByLayer;
+        var layout = sanctumStateTracker.roomLayout;
+        if (roomsByLayer == null || layout == null)
+            return "No Sanctum layout available.";
+
+        // We expect that for each layer L, layout[L] has an entry per room in that layer.
+        var layers = roomsByLayer.Count;
+        if (layout.Length < layers)
+            return $"Layout layer count {layout.Length} < rooms {layers}.";
+
+        for (int layer = 0; layer < layers; layer++)
+        {
+            var layerRooms = roomsByLayer[layer];
+            var layoutLayer = layout[layer];
+            if (layerRooms == null)
+                return $"Layer {layer} has null room list.";
+            if (layoutLayer == null)
+                return $"Layout for layer {layer} is null.";
+            if (layoutLayer.Length < layerRooms.Count)
+                return $"Layout rooms {layoutLayer.Length} < UI rooms {layerRooms.Count} at layer {layer}.";
+
+            // Forward edges point to next layer
+            if (layer + 1 < layers)
+            {
+                int nextLayerRooms = roomsByLayer[layer + 1]?.Count ?? 0;
+                for (int room = 0; room < layerRooms.Count; room++)
+                {
+                    var edges = layoutLayer[room];
+                    if (edges == null) continue;
+                    foreach (var target in edges)
+                    {
+                        if (target >= nextLayerRooms)
+                            return $"Invalid edge {layer}:{room}->{layer + 1}:{target} (next layer has {nextLayerRooms} rooms).";
+                    }
+                }
+            }
+        }
+        return null;
     }
     #endregion
 }
