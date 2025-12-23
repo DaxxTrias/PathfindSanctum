@@ -307,7 +307,7 @@ public class AdvancedSettings {
     [Menu("ES Upper Threshold")]
     public RangeNode<int> DynamicESUpperThreshold { get; set; } = new RangeNode<int>(6000, 0, 20000);
 
-    [Menu("ES Lower Weight", "This weight will be used when your maximum energy shield surpasses the upper threshold")]
+    [Menu("ES Upper Weight", "This weight will be used when your maximum energy shield surpasses the upper threshold")]
     public RangeNode<int> DynamicESUpperWeight { get; set; } = new RangeNode<int>(-5000, -10000, 0);
 }
 
